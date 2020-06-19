@@ -1,27 +1,31 @@
+use clap::Clap;
 use itertools::Itertools;
 use num::integer::gcd;
-// use proconio::input;
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
-use std::env;
 use std::fmt;
 
-lazy_static::lazy_static! {
-    static ref MAKE_REPORT: bool = env::args().count() >= 2;
+thread_local! {
+    static MAKE_REPORT: Cell<bool> = Cell::new(false);
 }
 
 macro_rules! write_report(
     ($($args:tt)*) => {
-        if *MAKE_REPORT {
-            print!($($args)*);
-        }
+        MAKE_REPORT.with(|f| {
+            if f.get() {
+                print!($($args)*);
+            }
+        })
     }
 );
 
 macro_rules! writeln_report(
     ($($args:tt)*) => {
-        if *MAKE_REPORT {
-            println!($($args)*);
-        }
+        MAKE_REPORT.with(|f| {
+            if f.get() {
+                println!($($args)*);
+            }
+        })
     }
 );
 
@@ -574,62 +578,77 @@ fn do_main(d: i64) -> Result<(), String> {
         calc_positive(disc)?
     };
 
-    if !*MAKE_REPORT {
-        println!("d = {}: {} ({:?})", d, res.len(), res);
-    }
-
-    if *MAKE_REPORT {
-        writeln_report!("したがって，$h_K = {}$．", res.len());
-        writeln_report!();
-        writeln_report!("イデアル類群の代表元は，");
-        let mut first = true;
-        for (a, b, _) in res {
-            if !first {
-                write_report!(", ");
-            }
-            first = false;
-
-            if b % 2 == 0 && disc % 4 == 0 {
-                if b == 0 {
-                    write_report!(r"$\left({}, \sqrt{{ {} }}\right)$", a, disc / 4);
-                } else {
-                    write_report!(
-                        r"$\left({}, {} + \sqrt{{ {} }}\right)$",
-                        a,
-                        -b / 2,
-                        disc / 4
-                    );
-                }
-            } else {
-                if b == 0 {
-                    write_report!(
-                        r"$\left({}, \frac{{ \sqrt{{ {} }} }}{{ 2 }}\right)$",
-                        a,
-                        disc
-                    );
-                } else {
-                    write_report!(
-                        r"$\left({}, \frac{{ {} + \sqrt{{ {} }} }}{{ 2 }}\right)$",
-                        a,
-                        -b,
-                        disc
-                    );
-                }
-            }
+    MAKE_REPORT.with(|f| {
+        if !f.get() {
+            println!("d = {}: {} ({:?})", d, res.len(), res);
         }
-        writeln_report!(r"．");
-    }
+    });
+
+    MAKE_REPORT.with(|f| {
+        if f.get() {
+            writeln_report!("したがって，$h_K = {}$．", res.len());
+            writeln_report!();
+            writeln_report!("イデアル類群の代表元は，");
+            let mut first = true;
+            for (a, b, _) in res {
+                if !first {
+                    write_report!(", ");
+                }
+                first = false;
+
+                if b % 2 == 0 && disc % 4 == 0 {
+                    if b == 0 {
+                        write_report!(r"$\left({}, \sqrt{{ {} }}\right)$", a, disc / 4);
+                    } else {
+                        write_report!(
+                            r"$\left({}, {} + \sqrt{{ {} }}\right)$",
+                            a,
+                            -b / 2,
+                            disc / 4
+                        );
+                    }
+                } else {
+                    if b == 0 {
+                        write_report!(
+                            r"$\left({}, \frac{{ \sqrt{{ {} }} }}{{ 2 }}\right)$",
+                            a,
+                            disc
+                        );
+                    } else {
+                        write_report!(
+                            r"$\left({}, \frac{{ {} + \sqrt{{ {} }} }}{{ 2 }}\right)$",
+                            a,
+                            -b,
+                            disc
+                        );
+                    }
+                }
+            }
+            writeln_report!(r"．");
+        }
+    });
 
     Ok(())
 }
 
-fn main() {
-    // do_main(-13).unwrap();
-    // do_main(1e6 as i64 + 7).unwrap();
+#[derive(Clap)]
+struct Opt {
+    #[clap(short, long, about = "Enables reporting")]
+    make_report: bool,
+    start: i64,
+    end: Option<i64>,
+}
 
-    let min = -4000;
-    let max = 4000;
-    for d in min..=max {
+fn main() {
+    let opt = Opt::parse();
+
+    if opt.make_report {
+        MAKE_REPORT.with(|f| f.set(true));
+    }
+
+    let start = opt.start;
+    let end = opt.end.unwrap_or(opt.start);
+    for d in start..=end {
         writeln_report!();
         writeln_report!(r"\section{{ $K = \mathbb{{Q}}(\sqrt{{ {} }})$ }}", d);
         writeln_report!();
