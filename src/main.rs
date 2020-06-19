@@ -67,6 +67,10 @@ fn calc_negative(disc: i64) -> Result<Vec<(i64, i64, i64)>, String> {
     let maxb = {
         let sqrt = (disc.abs() as f64 / 3.0).sqrt();
         let is_int = is_int(sqrt);
+        // 1.3 -> 2, 2.9 -> 3, 4.0 -> 5 としたい。
+        //
+        // sqrt.floor() + 1.0 でもよいが、 sqrt の精度で整数がわずかに小さい値に
+        // なって floor で 1 ずれる可能性を心配している。
         let maxb = if is_int {
             sqrt.round() + 1.0
         } else {
@@ -243,16 +247,14 @@ fn calc_positive(disc: i64) -> Result<Vec<(i64, i64, i64)>, String> {
     assert!(disc > 0);
 
     // 条件 (A) を確認する
-    // b の候補を得る
+    // b の候補を得る (exclusive))
     writeln_report!("まず，条件を満たす$b$の候補を計算する．$b$の範囲は");
     let minb = {
         let sqrt = (disc as f64).sqrt();
+        // 本来は d = 1 以外で int になることはないのであまり考える必要はない。
         let is_int = is_int(sqrt);
-        let minb = if is_int {
-            -sqrt.round() + 1.0
-        } else {
-            -sqrt.ceil()
-        } as i64;
+        // 1.3 -> -2, -2.9 -> -3, 4.0 -> -4 としたい。
+        let minb = if is_int { -sqrt.round() } else { -sqrt.ceil() } as i64;
 
         writeln_report!(
             r"\[ 0 > b > -\sqrt{{ {disc} }} {op} {minb}. \]",
