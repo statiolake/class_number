@@ -1,31 +1,25 @@
 use clap::Clap;
 use itertools::Itertools;
 use num::integer::gcd;
-use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-thread_local! {
-    static MAKE_REPORT: Cell<bool> = Cell::new(false);
-}
+static MAKE_REPORT: AtomicBool = AtomicBool::new(false);
 
 macro_rules! write_report(
     ($($args:tt)*) => {
-        MAKE_REPORT.with(|f| {
-            if f.get() {
-                print!($($args)*);
-            }
-        })
+        if MAKE_REPORT.load(Ordering::SeqCst) {
+            print!($($args)*);
+        }
     }
 );
 
 macro_rules! writeln_report(
     ($($args:tt)*) => {
-        MAKE_REPORT.with(|f| {
-            if f.get() {
-                println!($($args)*);
-            }
-        })
+        if MAKE_REPORT.load(Ordering::SeqCst) {
+            println!($($args)*);
+        }
     }
 );
 
@@ -578,62 +572,58 @@ fn do_main(d: i64) -> Result<(), String> {
         calc_positive(disc)?
     };
 
-    MAKE_REPORT.with(|f| {
-        if !f.get() {
-            println!("d = {}: {} ({:?})", d, res.len(), res);
-        }
-    });
+    if !MAKE_REPORT.load(Ordering::SeqCst) {
+        println!("d = {}: {} ({:?})", d, res.len(), res);
+    }
 
-    MAKE_REPORT.with(|f| {
-        if f.get() {
-            writeln_report!("したがって，$h_K = {}$．", res.len());
-            writeln_report!();
-            writeln_report!("イデアル類群の代表元は，");
-            let mut first = true;
-            for (a, b, _) in res {
-                if !first {
-                    write_report!(", ");
-                }
-                first = false;
+    if MAKE_REPORT.load(Ordering::SeqCst) {
+        writeln_report!("したがって，$h_K = {}$．", res.len());
+        writeln_report!();
+        writeln_report!("イデアル類群の代表元は，");
+        let mut first = true;
+        for (a, b, _) in res {
+            if !first {
+                write_report!(", ");
+            }
+            first = false;
 
-                if b % 2 == 0 && disc % 4 == 0 {
-                    if b == 0 {
-                        write_report!(r"$\left({}, \sqrt{{ {} }}\right)$", a, disc / 4);
-                    } else {
-                        write_report!(
-                            r"$\left({}, {} + \sqrt{{ {} }}\right)$",
-                            a,
-                            -b / 2,
-                            disc / 4
-                        );
-                    }
+            if b % 2 == 0 && disc % 4 == 0 {
+                if b == 0 {
+                    write_report!(r"$\left({}, \sqrt{{ {} }}\right)$", a, disc / 4);
                 } else {
-                    if b == 0 {
-                        write_report!(
-                            r"$\left({}, \frac{{ \sqrt{{ {} }} }}{{ 2 }}\right)$",
-                            a,
-                            disc
-                        );
-                    } else {
-                        write_report!(
-                            r"$\left({}, \frac{{ {} + \sqrt{{ {} }} }}{{ 2 }}\right)$",
-                            a,
-                            -b,
-                            disc
-                        );
-                    }
+                    write_report!(
+                        r"$\left({}, {} + \sqrt{{ {} }}\right)$",
+                        a,
+                        -b / 2,
+                        disc / 4
+                    );
+                }
+            } else {
+                if b == 0 {
+                    write_report!(
+                        r"$\left({}, \frac{{ \sqrt{{ {} }} }}{{ 2 }}\right)$",
+                        a,
+                        disc
+                    );
+                } else {
+                    write_report!(
+                        r"$\left({}, \frac{{ {} + \sqrt{{ {} }} }}{{ 2 }}\right)$",
+                        a,
+                        -b,
+                        disc
+                    );
                 }
             }
-            writeln_report!(r"．");
         }
-    });
+        writeln_report!(r"．");
+    }
 
     Ok(())
 }
 
 #[derive(Clap)]
 struct Opt {
-    #[clap(short, long, about = "Enables reporting")]
+    #[clap(short = "r", long, about = "Enables reporting")]
     make_report: bool,
     start: i64,
     end: Option<i64>,
@@ -643,7 +633,7 @@ fn main() {
     let opt = Opt::parse();
 
     if opt.make_report {
-        MAKE_REPORT.with(|f| f.set(true));
+        MAKE_REPORT.store(true, Ordering::SeqCst);
     }
 
     let start = opt.start;
